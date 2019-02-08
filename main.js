@@ -3,10 +3,16 @@ let analyser = null;
 let visualizer = null;
 let animationFrameID = null;
 
+const barCount = 32;
+
+let barColor = null;
 const colorListening = 'rgb(200,200,50)';
 const colorRecording = 'rgb(200,50,50)';
 const colorPlaying = 'rgb(50,200,50)';
-let barColor = colorListening;
+const colorBackground = 'rgb(0, 0, 0)';
+const labelColor = 'rgb(255, 255, 255)';
+const labelFont = '14px sans-serif';
+const lineHeight = 20;
 
 class Visualizer {
   constructor(canvasID) {
@@ -14,25 +20,45 @@ class Visualizer {
     this.width = canvas.width;
     this.height = canvas.height;
     this.ctx = canvas.getContext('2d');
+    this.graphOffsetX = 40;
+    this.graphOffsetY = 20;
+    this.graphWidth = this.width - this.graphOffsetX;
+    this.graphHeight = this.height - this.graphOffsetY;
   }
 
   clear() {
-    this.ctx.fillStyle = 'rgb(0, 0, 0)';
+    this.ctx.fillStyle = colorBackground;
     this.ctx.fillRect(0, 0, this.width, this.height);
+
+    this.ctx.font = labelFont;
+    this.ctx.fillStyle = labelColor;
+    let vol = 0;
+    for(let y = 0; y < this.graphHeight; y += lineHeight) {
+      vol = Math.floor(y / this.graphHeight * 256)
+      this.ctx.fillText(vol.toString(), 2, this.graphHeight - y);
+    }
   }
 
   graph(dataArray) {
     this.clear();
 
-    const barWidth = (this.width / dataArray.length) - 1;
-    let barHeight = 0;
-    let x = 0;
+    const barWidth = (this.graphWidth / dataArray.length) - 1;
 
+    this.ctx.font = labelFont;
+    this.ctx.fillStyle = labelColor;
+    let f = 1;
+    for(let x = 0; x < this.graphWidth; x += (barWidth+1)) {
+      this.ctx.fillText(f.toString(), this.graphOffsetX + x, this.height - 2);
+      f++;
+    }
+
+    let barHeight = 0;
+    let x = this.graphOffsetX;
     this.ctx.fillStyle = barColor;
 
     for (let f of dataArray) {
-      barHeight = f * this.height / 256;
-      this.ctx.fillRect(x, this.height-barHeight, barWidth, barHeight);
+      barHeight = f * (this.height - this.graphOffsetY) / 256;
+      this.ctx.fillRect(x, this.height-this.graphOffsetY-barHeight, barWidth, barHeight);
       x += barWidth + 1;
     }
   }
@@ -56,13 +82,13 @@ class Analyser {
   }
 
   _connectSource(source) {
+    this.analyser.fftSize = barCount * 2;
     source.connect(this.analyser);
-    this.analyser.fftSize = 256; // default 2048 (number of bars)
 
-    // console.log(this.analyser.fftSize);
-    // console.log(this.analyser.frequencyBinCount);
-    // console.log(this.analyser.minDecibels);
-    // console.log(this.analyser.maxDecibels);
+    console.log(`fftSize ${this.analyser.fftSize}`);
+    console.log(`frequencyBinCount ${this.analyser.frequencyBinCount}`);
+    console.log(`minDecibels ${this.analyser.minDecibels}`);
+    console.log(`maxDecibels ${this.analyser.maxDecibels}`);
 
     this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
   }
@@ -130,6 +156,7 @@ window.onload = function () {
     micButton.style.display = 'none';
     document.getElementById('interface').style.display = 'block';
     analyser.fromStream(microphone);
+    barColor = colorListening;
     visualize();
 
     recordButton.addEventListener('click', () => startRecording(microphone));
