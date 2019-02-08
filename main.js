@@ -3,6 +3,11 @@ let analyser = null;
 let visualizer = null;
 let animationFrameID = null;
 
+const colorListening = 'rgb(200,200,50)';
+const colorRecording = 'rgb(200,50,50)';
+const colorPlaying = 'rgb(50,200,50)';
+let barColor = colorListening;
+
 class Visualizer {
   constructor(canvasID) {
     const canvas = document.getElementById(canvasID);
@@ -23,7 +28,7 @@ class Visualizer {
     let barHeight = 0;
     let x = 0;
 
-    this.ctx.fillStyle = 'rgb(200,50,50)';
+    this.ctx.fillStyle = barColor;
 
     for (let f of dataArray) {
       barHeight = f * this.height / 256;
@@ -34,29 +39,41 @@ class Visualizer {
 }
 
 class Analyser {
-  constructor(stream) {
-    const audioCtx = new window.webkitAudioContext();
-    const analyser = audioCtx.createAnalyser();
-    const source = audioCtx.createMediaStreamSource(stream);
-    source.connect(analyser);
-    analyser.fftSize = 256; // default 2048 (number of bars)
-
-    console.log(analyser.fftSize);
-    console.log(analyser.frequencyBinCount);
-    console.log(analyser.minDecibels);
-    console.log(analyser.maxDecibels);
-
-    this.analyser = analyser;
-    this.dataArray = new Uint8Array(analyser.frequencyBinCount);
+  constructor() {
+    this.audioCtx = new window.webkitAudioContext();
   }
 
-  getData() {
+  fromStream(stream) {
+    this.analyser = this.audioCtx.createAnalyser();
+    const source = this.audioCtx.createMediaStreamSource(stream);
+    this._connectSource(source)
+  }
+
+  fromMediaElement(mediaElement) {
+    this.analyser = this.audioCtx.createAnalyser();
+    const source = this.audioCtx.createMediaElementSource(mediaElement);
+    this._connectSource(source)
+  }
+
+  _connectSource(source) {
+    source.connect(this.analyser);
+    this.analyser.fftSize = 256; // default 2048 (number of bars)
+
+    // console.log(this.analyser.fftSize);
+    // console.log(this.analyser.frequencyBinCount);
+    // console.log(this.analyser.minDecibels);
+    // console.log(this.analyser.maxDecibels);
+
+    this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+  }
+
+  getFrequencyData() {
     this.analyser.getByteFrequencyData(this.dataArray);
     return this.dataArray;
   }
 }
 
-async function getRecorder() {
+async function getMicrophone() {
   const constraints = {
     audio: {
       sampleRate: 48000,
@@ -67,46 +84,66 @@ async function getRecorder() {
     },
     video: false
   }
-  const stream = await navigator.mediaDevices.getUserMedia(constraints)
-  recorder = new MediaRecorder(stream);
-  recorder.addEventListener('dataavailable', onRecordingReady);
-
-  analyser = new Analyser(stream);
+  return navigator.mediaDevices.getUserMedia(constraints);
 }
 
 function visualize() {
   animationFrameID = requestAnimationFrame(visualize);
-  const dataArray = analyser.getData();
+  const dataArray = analyser.getFrequencyData();
   visualizer.graph(dataArray);
 }
 
-function startRecording() {
+function startRecording(stream) {
   recordButton.disabled = true;
   stopButton.disabled = false;
+
+  barColor = colorRecording;
+  recorder = new MediaRecorder(stream);
+  recorder.addEventListener('dataavailable', onRecordingReady);
   recorder.start();
-  visualize();
 }
 
 function stopRecording() {
   recordButton.disabled = false;
   stopButton.disabled = true;
   recorder.stop();
-  cancelAnimationFrame(animationFrameID);
+  barColor = colorListening;
+  // cancelAnimationFrame(animationFrameID);
 }
 
 function onRecordingReady(e) {
   const audio = document.getElementById('audio');
   audio.src = URL.createObjectURL(e.data);
+  audio.style.display = 'block';
 }
 
-window.onload = function async () {
-  getRecorder();
-
-  visualizer = new Visualizer('canvas');
-
+window.onload = function () {
+  analyser = new Analyser();
+  const audioControl = document.getElementById('audio');
+  const micButton = document.getElementById('microphone');
   recordButton = document.getElementById('record');
   stopButton = document.getElementById('stop');
-  recordButton.addEventListener('click', startRecording);
-  stopButton.addEventListener('click', stopRecording);
-  recordButton.disabled = false;
+  visualizer = new Visualizer('canvas');
+
+  micButton.addEventListener('click', async () => {
+    const microphone = await getMicrophone();
+    micButton.style.display = 'none';
+    document.getElementById('interface').style.display = 'block';
+    analyser.fromStream(microphone);
+    visualize();
+
+    recordButton.addEventListener('click', () => startRecording(microphone));
+    stopButton.addEventListener('click', stopRecording);
+    audioControl.addEventListener('play', () => {
+      console.log('play');
+      analyser.fromMediaElement(audioControl);
+      barColor = colorPlaying;
+    });
+    audioControl.addEventListener('ended', () => {
+      console.log('ended');
+      analyser.fromStream(microphone);
+      barColor = colorListening;
+    });
+    recordButton.disabled = false;
+  });
 }
