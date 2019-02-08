@@ -12,7 +12,6 @@ const colorPlaying = 'rgb(50,200,50)';
 const colorBackground = 'rgb(0, 0, 0)';
 const labelColor = 'rgb(255, 255, 255)';
 const labelFont = '14px sans-serif';
-const lineHeight = 20;
 
 class Visualizer {
   constructor(canvasID) {
@@ -21,44 +20,65 @@ class Visualizer {
     this.height = canvas.height;
     this.ctx = canvas.getContext('2d');
     this.graphOffsetX = 40;
-    this.graphOffsetY = 20;
+    this.graphReserveY = 20;
     this.graphWidth = this.width - this.graphOffsetX;
-    this.graphHeight = this.height - this.graphOffsetY;
+    this.graphHeight = this.height - this.graphReserveY;
+
+    this.ctx.fillStyle = colorBackground;
+    this.ctx.fillRect(0, 0, this.width, this.height);
+
+    this.dBAxis(-100, -30);
+    this.freqAxis();
   }
 
   clear() {
     this.ctx.fillStyle = colorBackground;
-    this.ctx.fillRect(0, 0, this.width, this.height);
+    this.ctx.fillRect(this.graphOffsetX, 0, this.graphWidth, this.graphHeight);
+  }
 
+  dBAxis(min, max) {
     this.ctx.font = labelFont;
     this.ctx.fillStyle = labelColor;
-    let vol = 0;
-    for(let y = 0; y < this.graphHeight; y += lineHeight) {
-      vol = Math.floor(y / this.graphHeight * 256)
+
+    const inc = 10;
+    const steps = (max - min) / inc + 1;
+    const lineHeight = this.graphHeight / steps;
+
+    let y = 0;
+    for(let vol = min; vol <= max; vol += inc) {
       this.ctx.fillText(vol.toString(), 2, this.graphHeight - y);
+      y += lineHeight;
+    }
+  }
+
+  freqAxis() {
+    this.ctx.font = labelFont;
+    this.ctx.fillStyle = labelColor;
+
+    const paddedBarWidth = this.graphWidth / barCount;
+
+    let x = 0;
+    let hz = 0;
+    // 0 hertz to 22,050 hertz
+    for(let b = 0; b < barCount; b++) {
+      hz = Math.ceil(b / barCount * 22)
+      this.ctx.fillText(hz.toString(), this.graphOffsetX + x, this.height - 2);
+      x += paddedBarWidth;
     }
   }
 
   graph(dataArray) {
     this.clear();
 
-    const barWidth = (this.graphWidth / dataArray.length) - 1;
-
-    this.ctx.font = labelFont;
-    this.ctx.fillStyle = labelColor;
-    let f = 1;
-    for(let x = 0; x < this.graphWidth; x += (barWidth+1)) {
-      this.ctx.fillText(f.toString(), this.graphOffsetX + x, this.height - 2);
-      f++;
-    }
+    const barWidth = (this.graphWidth / barCount) - 1;
 
     let barHeight = 0;
     let x = this.graphOffsetX;
     this.ctx.fillStyle = barColor;
 
     for (let f of dataArray) {
-      barHeight = f * (this.height - this.graphOffsetY) / 256;
-      this.ctx.fillRect(x, this.height-this.graphOffsetY-barHeight, barWidth, barHeight);
+      barHeight = f * (this.height - this.graphReserveY) / 256;
+      this.ctx.fillRect(x, this.height-this.graphReserveY-barHeight, barWidth, barHeight);
       x += barWidth + 1;
     }
   }
@@ -70,6 +90,9 @@ class Analyser {
   }
 
   fromStream(stream) {
+    const track = stream.getAudioTracks()[0];
+    console.log(track.getSettings());
+
     this.analyser = this.audioCtx.createAnalyser();
     const source = this.audioCtx.createMediaStreamSource(stream);
     this._connectSource(source)
