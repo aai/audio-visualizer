@@ -1,14 +1,10 @@
-let recorder = null;
 let analyser = null;
 let visualizer = null;
-let animationFrameID = null;
 
 const barCount = 32;
 
 let barColor = null;
 const colorListening = 'rgb(200,200,50)';
-const colorRecording = 'rgb(200,50,50)';
-const colorPlaying = 'rgb(50,200,50)';
 const colorBackground = 'rgb(0, 0, 0)';
 const labelColor = 'rgb(255, 255, 255)';
 const labelFont = '14px sans-serif';
@@ -98,12 +94,6 @@ class Analyser {
     this._connectSource(source)
   }
 
-  fromMediaElement(mediaElement) {
-    this.analyser = this.audioCtx.createAnalyser();
-    const source = this.audioCtx.createMediaElementSource(mediaElement);
-    this._connectSource(source)
-  }
-
   _connectSource(source) {
     this.analyser.fftSize = barCount * 2;
     source.connect(this.analyser);
@@ -137,40 +127,14 @@ async function getMicrophone() {
 }
 
 function visualize() {
-  animationFrameID = requestAnimationFrame(visualize);
+  requestAnimationFrame(visualize);
   const dataArray = analyser.getFrequencyData();
   visualizer.graph(dataArray);
-}
-
-function startRecording(stream) {
-  recordButton.disabled = true;
-  stopButton.disabled = false;
-
-  barColor = colorRecording;
-  recorder = new MediaRecorder(stream);
-  recorder.addEventListener('dataavailable', onRecordingReady);
-  recorder.start();
-}
-
-function stopRecording() {
-  recordButton.disabled = false;
-  stopButton.disabled = true;
-  recorder.stop();
-  barColor = colorListening;
-  // cancelAnimationFrame(animationFrameID);
-}
-
-function onRecordingReady(e) {
-  const audio = document.getElementById('audio');
-  audio.src = URL.createObjectURL(e.data);
-  audio.style.display = 'block';
 }
 
 window.onload = function () {
   const audioControl = document.getElementById('audio');
   const micButton = document.getElementById('microphone');
-  recordButton = document.getElementById('record');
-  stopButton = document.getElementById('stop');
   visualizer = new Visualizer('canvas');
 
   micButton.addEventListener('click', async () => {
@@ -182,19 +146,5 @@ window.onload = function () {
     analyser.fromStream(microphone);
     barColor = colorListening;
     visualize();
-
-    recordButton.addEventListener('click', () => startRecording(microphone));
-    stopButton.addEventListener('click', stopRecording);
-    audioControl.addEventListener('play', () => {
-      console.log('play');
-      analyser.fromMediaElement(audioControl);
-      barColor = colorPlaying;
-    });
-    audioControl.addEventListener('ended', () => {
-      console.log('ended');
-      analyser.fromStream(microphone);
-      barColor = colorListening;
-    });
-    recordButton.disabled = false;
   });
 }
