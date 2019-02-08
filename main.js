@@ -23,9 +23,10 @@ class Visualizer {
     let barHeight = 0;
     let x = 0;
 
+    this.ctx.fillStyle = 'rgb(200,50,50)';
+
     for (let f of dataArray) {
-      barHeight = f/4;
-      this.ctx.fillStyle = 'rgb(' + (barHeight+100) + ',50,50)';
+      barHeight = f * this.height / 256;
       this.ctx.fillRect(x, this.height-barHeight, barWidth, barHeight);
       x += barWidth + 1;
     }
@@ -41,6 +42,7 @@ class Analyser {
     analyser.fftSize = 256; // default 2048 (number of bars)
 
     console.log(analyser.fftSize);
+    console.log(analyser.frequencyBinCount);
     console.log(analyser.minDecibels);
     console.log(analyser.maxDecibels);
 
@@ -49,7 +51,7 @@ class Analyser {
   }
 
   getData() {
-    this.analyser.getByteTimeDomainData(this.dataArray);
+    this.analyser.getByteFrequencyData(this.dataArray);
     return this.dataArray;
   }
 }
