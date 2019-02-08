@@ -86,7 +86,7 @@ class Visualizer {
 
 class Analyser {
   constructor() {
-    this.audioCtx = new window.webkitAudioContext();
+    this.audioCtx = new (window.webkitAudioContext || window.AudioContext)();
   }
 
   fromStream(stream) {
@@ -167,7 +167,6 @@ function onRecordingReady(e) {
 }
 
 window.onload = function () {
-  analyser = new Analyser();
   const audioControl = document.getElementById('audio');
   const micButton = document.getElementById('microphone');
   recordButton = document.getElementById('record');
@@ -175,7 +174,9 @@ window.onload = function () {
   visualizer = new Visualizer('canvas');
 
   micButton.addEventListener('click', async () => {
+    analyser = new Analyser();
     const microphone = await getMicrophone();
+
     micButton.style.display = 'none';
     document.getElementById('interface').style.display = 'block';
     analyser.fromStream(microphone);
