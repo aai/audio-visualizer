@@ -3,9 +3,9 @@ let visualizerFull = null;
 let visualizerZoom = null;
 
 const barCount = 256;
+const maxkHz = 22; // 0 hertz to 22,050 hertz
 
-const colorMini = 'rgb(200,200,50)';
-const colorFull = 'rgb(0,0,255)';
+const colorBar = 'rgb(200,200,50)';
 const colorPeak = 'rgb(200,0,0)';
 const colorBackground = 'rgb(0, 0, 0)';
 const labelColor = 'rgb(255, 255, 255)';
@@ -23,18 +23,15 @@ class Visualizer {
       this.paddedBarWidth = 32;
       this.graphOffsetX = 40;
       this.graphReserveY = 20;
-      this.barColor = colorFull;
-
     } else {
       this.paddedBarWidth = this.width / barCount;
       this.barWidth = this.paddedBarWidth - 1;
       this.graphOffsetX = 0;
       this.graphReserveY = 0;
-      this.barColor = colorMini;
     }
     this.graphWidth = this.width - this.graphOffsetX;
     this.graphHeight = this.height - this.graphReserveY;
-    this.firstBar = Math.ceil(barCount * startkHz / 22);
+    this.firstBar = Math.ceil(barCount * startkHz / maxkHz);
     this.peaks = [];
 
     this.ctx.fillStyle = colorBackground;
@@ -72,9 +69,8 @@ class Visualizer {
 
     let x = 0;
     let hz = 0;
-    // 0 hertz to 22,050 hertz
     for(let b = this.firstBar; b < barCount; b++) {
-      hz = b / barCount * 22;
+      hz = b / barCount * maxkHz;
       this.ctx.fillText(hz.toFixed(1), this.graphOffsetX + x, this.height - 2);
       x += this.paddedBarWidth;
     }
@@ -83,39 +79,39 @@ class Visualizer {
   graph(dataArray) {
     this.clear();
 
-    const barWidth = 32 - 1; // (this.graphWidth / barCount) - 1;
-
     let barHeight = 0;
     let peakHeight = 0;
     let peakY = 0;
     let x = this.graphOffsetX;
-    this.ctx.fillStyle = this.barColor;
-    this.ctx.strokeStyle = colorPeak;
     let f = 0;
+
+    this.ctx.fillStyle = colorBar;
+    this.ctx.strokeStyle = colorPeak;
 
     for (let i = this.firstBar; i < dataArray.length; i++) {
       f = dataArray[i];
+      barHeight = f * (this.height - this.graphReserveY) / 256;
+      this.ctx.fillRect(x, this.height-this.graphReserveY-barHeight, this.barWidth, barHeight);
+
       if (!this.peaks[i] || f > this.peaks[i].freq) {
         this.peaks[i] = {freq: f, decay: decayStart};
       }
-      barHeight = f * (this.height - this.graphReserveY) / 256;
-      peakHeight = this.peaks[i].freq * (this.height - this.graphReserveY) / 256;
-      peakY = this.height-this.graphReserveY-peakHeight;
-
-      this.ctx.fillRect(x, this.height-this.graphReserveY-barHeight, this.barWidth, barHeight);
+      // draw peaks
       if(this.peaks[i].freq > 0) {
+        peakHeight = this.peaks[i].freq * (this.height - this.graphReserveY) / 256;
+        peakY = this.height-this.graphReserveY-peakHeight;
         this.ctx.beginPath();
         this.ctx.moveTo(x, peakY);
         this.ctx.lineTo(x + this.barWidth - 1, peakY);
         this.ctx.stroke();
       }
-      x += this.paddedBarWidth;
-
       // decay peaks
       this.peaks[i].decay -= 1;
       if(this.peaks[i].decay <= 0) {
         this.peaks[i].freq = 0; // reset
       }
+
+      x += this.paddedBarWidth;
     }
   }
 }
