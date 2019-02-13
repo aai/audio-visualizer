@@ -1,11 +1,10 @@
 let analyser = null;
-let visualizer = null;
-let minimap = null;
+let visualizerFull = null;
+let visualizerZoom = null;
 
 const barCount = 256;
 
 const colorMini = 'rgb(200,200,50)';
-const colorMiniBackground = 'rgb(50, 50, 50)';
 const colorFull = 'rgb(0,0,255)';
 const colorPeak = 'rgb(200,0,0)';
 const colorBackground = 'rgb(0, 0, 0)';
@@ -14,41 +13,41 @@ const labelFont = '14px sans-serif';
 const decayStart = 25;
 
 class Visualizer {
-  constructor(canvasID, mini) {
+  constructor(canvasID, startkHz, labels) {
     const canvas = document.getElementById(canvasID);
     this.width = canvas.width;
     this.height = canvas.height;
     this.ctx = canvas.getContext('2d');
-    if (mini) {
-      this.barWidth = 1;
-      this.paddedBarWidth = 1;
-      this.graphOffsetX = 0;
-      this.graphReserveY = 0;
-      this.barColor = colorMini;
-      this.backgroundColor = colorMiniBackground;
-    } else {
+    if (labels) {
       this.barWidth = 30;
       this.paddedBarWidth = 32;
       this.graphOffsetX = 40;
       this.graphReserveY = 20;
       this.barColor = colorFull;
-      this.backgroundColor = colorBackground;
+
+    } else {
+      this.paddedBarWidth = this.width / barCount;
+      this.barWidth = this.paddedBarWidth - 1;
+      this.graphOffsetX = 0;
+      this.graphReserveY = 0;
+      this.barColor = colorMini;
     }
     this.graphWidth = this.width - this.graphOffsetX;
     this.graphHeight = this.height - this.graphReserveY;
+    this.firstBar = Math.ceil(barCount * startkHz / 22);
     this.peaks = [];
 
-    this.ctx.fillStyle = this.backgroundColor;
+    this.ctx.fillStyle = colorBackground;
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    if(!mini) {
+    if(labels) {
       this.dBAxis(-100, -30);
       this.freqAxis();
     }
   }
 
   clear() {
-    this.ctx.fillStyle = this.backgroundColor;
+    this.ctx.fillStyle = colorBackground;
     this.ctx.fillRect(this.graphOffsetX, 0, this.graphWidth, this.graphHeight);
   }
 
@@ -74,7 +73,7 @@ class Visualizer {
     let x = 0;
     let hz = 0;
     // 0 hertz to 22,050 hertz
-    for(let b = 0; b < barCount; b++) {
+    for(let b = this.firstBar; b < barCount; b++) {
       hz = b / barCount * 22;
       this.ctx.fillText(hz.toFixed(1), this.graphOffsetX + x, this.height - 2);
       x += this.paddedBarWidth;
@@ -92,9 +91,10 @@ class Visualizer {
     let x = this.graphOffsetX;
     this.ctx.fillStyle = this.barColor;
     this.ctx.strokeStyle = colorPeak;
-    let i = 0;
+    let f = 0;
 
-    for (const f of dataArray) {
+    for (let i = this.firstBar; i < dataArray.length; i++) {
+      f = dataArray[i];
       if (!this.peaks[i] || f > this.peaks[i].freq) {
         this.peaks[i] = {freq: f, decay: decayStart};
       }
@@ -116,7 +116,6 @@ class Visualizer {
       if(this.peaks[i].decay <= 0) {
         this.peaks[i].freq = 0; // reset
       }
-      i++;
     }
   }
 }
@@ -170,15 +169,15 @@ async function getMicrophone() {
 function visualize() {
   requestAnimationFrame(visualize);
   const dataArray = analyser.getFrequencyData();
-  visualizer.graph(dataArray);
-  minimap.graph(dataArray);
+  visualizerFull.graph(dataArray);
+  visualizerZoom.graph(dataArray);
 }
 
 window.onload = function () {
   const audioControl = document.getElementById('audio');
   const micButton = document.getElementById('microphone');
-  visualizer = new Visualizer('canvas', false);
-  minimap = new Visualizer('minimap', true);
+  visualizerFull = new Visualizer('full', 0, false);
+  visualizerZoom = new Visualizer('zoom', 17, true);
 
   micButton.addEventListener('click', async () => {
     analyser = new Analyser();
