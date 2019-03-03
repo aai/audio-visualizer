@@ -2,14 +2,14 @@ let analyser = null;
 let visualizerFull = null;
 let visualizerZoom = null;
 
-const barCount = 256;
-const maxkHz = 22; // 0 hertz to 22,050 hertz
+const barCount = 512;
+const maxkHz = 24; // 0 hertz to 22,050 hertz
 
-const colorBar = 'rgb(200,200,50)';
-const colorPeak = 'rgb(200,0,0)';
-const colorBackground = 'rgb(0, 0, 0)';
-const labelColor = 'rgb(255, 255, 255)';
-const labelFont = '14px sans-serif';
+const colorBar = "rgb(200,200,50)";
+const colorPeak = "rgb(200,0,0)";
+const colorBackground = "rgb(0, 0, 0)";
+const labelColor = "rgb(255, 255, 255)";
+const labelFont = "9px San Francisco Display";
 const decayStart = 25;
 
 class Visualizer {
@@ -17,10 +17,10 @@ class Visualizer {
     const canvas = document.getElementById(canvasID);
     this.width = canvas.width;
     this.height = canvas.height;
-    this.ctx = canvas.getContext('2d');
+    this.ctx = canvas.getContext("2d");
     if (labels) {
-      this.barWidth = 30;
-      this.paddedBarWidth = 32;
+      this.barWidth = 19;
+      this.paddedBarWidth = 20;
       this.graphOffsetX = 40;
       this.graphReserveY = 20;
     } else {
@@ -31,13 +31,13 @@ class Visualizer {
     }
     this.graphWidth = this.width - this.graphOffsetX;
     this.graphHeight = this.height - this.graphReserveY;
-    this.firstBar = Math.ceil(barCount * startkHz / maxkHz);
+    this.firstBar = Math.ceil((barCount * startkHz) / maxkHz);
     this.peaks = [];
 
     this.ctx.fillStyle = colorBackground;
     this.ctx.fillRect(0, 0, this.width, this.height);
 
-    if(labels) {
+    if (labels) {
       this.dBAxis(-100, -30);
       this.freqAxis();
     }
@@ -57,7 +57,7 @@ class Visualizer {
     const lineHeight = this.graphHeight / steps;
 
     let y = 0;
-    for(let vol = min; vol <= max; vol += inc) {
+    for (let vol = min; vol <= max; vol += inc) {
       this.ctx.fillText(vol.toString(), 2, this.graphHeight - y);
       y += lineHeight;
     }
@@ -69,8 +69,8 @@ class Visualizer {
 
     let x = 0;
     let hz = 0;
-    for(let b = this.firstBar; b < barCount; b++) {
-      hz = b / barCount * maxkHz;
+    for (let b = this.firstBar; b < barCount; b++) {
+      hz = (b / barCount) * maxkHz;
       this.ctx.fillText(hz.toFixed(1), this.graphOffsetX + x, this.height - 2);
       x += this.paddedBarWidth;
     }
@@ -90,16 +90,22 @@ class Visualizer {
 
     for (let i = this.firstBar; i < dataArray.length; i++) {
       f = dataArray[i];
-      barHeight = f * (this.height - this.graphReserveY) / 256;
-      this.ctx.fillRect(x, this.height-this.graphReserveY-barHeight, this.barWidth, barHeight);
+      barHeight = (f * (this.height - this.graphReserveY)) / 256;
+      this.ctx.fillRect(
+        x,
+        this.height - this.graphReserveY - barHeight,
+        this.barWidth,
+        barHeight
+      );
 
       if (!this.peaks[i] || f > this.peaks[i].freq) {
-        this.peaks[i] = {freq: f, decay: decayStart};
+        this.peaks[i] = { freq: f, decay: decayStart };
       }
       // draw peaks
-      if(this.peaks[i].freq > 0) {
-        peakHeight = this.peaks[i].freq * (this.height - this.graphReserveY) / 256;
-        peakY = this.height-this.graphReserveY-peakHeight;
+      if (this.peaks[i].freq > 0) {
+        peakHeight =
+          (this.peaks[i].freq * (this.height - this.graphReserveY)) / 256;
+        peakY = this.height - this.graphReserveY - peakHeight;
         this.ctx.beginPath();
         this.ctx.moveTo(x, peakY);
         this.ctx.lineTo(x + this.barWidth - 1, peakY);
@@ -107,7 +113,7 @@ class Visualizer {
       }
       // decay peaks
       this.peaks[i].decay -= 1;
-      if(this.peaks[i].decay <= 0) {
+      if (this.peaks[i].decay <= 0) {
         this.peaks[i].freq = 0; // reset
       }
 
@@ -127,7 +133,7 @@ class Analyser {
 
     this.analyser = this.audioCtx.createAnalyser();
     const source = this.audioCtx.createMediaStreamSource(stream);
-    this._connectSource(source)
+    this._connectSource(source);
   }
 
   _connectSource(source) {
@@ -158,7 +164,7 @@ async function getMicrophone() {
       volume: 1.0
     },
     video: false
-  }
+  };
   return navigator.mediaDevices.getUserMedia(constraints);
 }
 
@@ -169,19 +175,19 @@ function visualize() {
   visualizerZoom.graph(dataArray);
 }
 
-window.onload = function () {
-  const audioControl = document.getElementById('audio');
-  const micButton = document.getElementById('microphone');
-  visualizerFull = new Visualizer('full', 0, false);
-  visualizerZoom = new Visualizer('zoom', 17, true);
+window.onload = function() {
+  const audioControl = document.getElementById("audio");
+  const micButton = document.getElementById("microphone");
+  visualizerFull = new Visualizer("full", 0, false);
+  visualizerZoom = new Visualizer("zoom", 18, true);
 
-  micButton.addEventListener('click', async () => {
+  micButton.addEventListener("click", async () => {
     analyser = new Analyser();
     const microphone = await getMicrophone();
 
-    micButton.style.display = 'none';
-    document.getElementById('interface').style.display = 'block';
+    micButton.style.display = "none";
+    document.getElementById("interface").style.display = "block";
     analyser.fromStream(microphone);
     visualize();
   });
-}
+};
